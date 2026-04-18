@@ -1,5 +1,7 @@
 import { RefreshCw, TrendingUp, Package, DollarSign, Plus, Calendar, Building2, Home, Download, X, Printer } from "lucide-react";
 import QRCode from 'qrcode';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 // Create initials mapping for products
 const getItemInitials = (productName) => {
@@ -20,7 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { countries } from "@/lib/data";
 import { MarginDial } from "./MarginDial";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/supabaseClient";
 
 function procurementSalePaymentClass(paymentStructure: string) {
   if (paymentStructure === "Full Payment") return "bg-success/10 text-success border border-success/20";
@@ -114,6 +117,9 @@ export function ProcurementTab() {
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [supabaseLoading, setSupabaseLoading] = useState(false);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [supabaseStatus, setSupabaseStatus] = useState('');
   const [paymentPlan, setPaymentPlan] = useState({
     downPayment: '',
     installmentAmount: '',
@@ -121,6 +127,40 @@ export function ProcurementTab() {
     paymentFrequency: 'monthly',
     firstPaymentDate: ''
   });
+
+  useEffect(() => {
+    async function loadPendingInvoices() {
+      setSupabaseLoading(true);
+      const { data, error } = await supabase
+        .from('pending_invoices')
+        .select('*')
+        .order('created_date', { ascending: false });
+
+      setSupabaseLoading(false);
+
+      if (error) {
+        setSupabaseStatus(`Failed to load pending invoices: ${error.message}`);
+        return;
+      }
+
+      if (data) {
+        setPendingInvoices(data.map((row) => ({
+          invoiceId: row.invoice_id ?? row.invoiceId,
+          customerId: row.customer_id ?? row.customerId,
+          customerInfo: row.customer_info ?? row.customerInfo,
+          items: row.items ?? [],
+          totalAmount: row.total_amount ?? row.totalAmount,
+          paymentType: row.payment_type ?? row.paymentType,
+          status: row.status ?? row.status,
+          createdDate: row.created_date ?? row.createdDate,
+          printedDate: row.printed_date ?? row.printedDate,
+          completedDate: row.completed_date ?? row.completedDate
+        })));
+      }
+    }
+
+    loadPendingInvoices();
+  }, []);
   const [salesHistory, setSalesHistory] = useState([
     { itemName: 'Smartphones - Model A', quantity: 50, unitPrice: 180, paymentStructure: 'Full Payment', date: '2026-04-12', customerName: 'John Doe', customerPhone: '+254712345678', customerCity: 'Nairobi', customerCountry: 'kenya' },
     { itemName: 'Laptops - Business Series', quantity: 25, unitPrice: 650, paymentStructure: 'Partial Credit', date: '2026-04-12', customerName: 'Jane Smith', customerPhone: '+254723456789', customerCity: 'Mombasa', customerCountry: 'kenya' },
@@ -346,8 +386,8 @@ export function ProcurementTab() {
     return newCustomer;
   };
 
-  const createPendingInvoice = () => {
-    if (cart.length === 0 || !stockSold.customerName) return;
+  const createPendingInvoice = async ({ printedDate = null } = {}) => {
+    if (cart.length === 0 || !stockSold.customerName) return null;
     
     const customer = findOrCreateCustomer(stockSold);
     const invoice = {
@@ -364,54 +404,191 @@ export function ProcurementTab() {
       paymentType: stockSold.paymentType,
       status: 'pending',
       createdDate: new Date().toISOString(),
-      printedDate: null,
+      printedDate,
       completedDate: null
     };
-    
-    setPendingInvoices([...pendingInvoices, invoice]);
+
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('pending_invoices')
+        .insert([{
+          invoice_id: invoice.invoiceId,
+          customer_id: invoice.customerId,
+          customer_info: invoice.customerInfo,
+          items: invoice.items,
+          total_amount: invoice.totalAmount,
+          payment_type: invoice.paymentType,
+          status: invoice.status,
+          created_date: invoice.createdDate,
+          printed_date: invoice.printedDate,
+          completed_date: invoice.completedDate
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        setSupabaseStatus(`Supabase save error: ${error.message}`);
+      }
+
+      const persistedInvoice = data
+        ? {
+            invoiceId: data.invoice_id ?? invoice.invoiceId,
+            customerId: data.customer_id ?? invoice.customerId,
+            customerInfo: data.customer_info ?? invoice.customerInfo,
+            items: data.items ?? invoice.items,
+            totalAmount: data.total_amount ?? invoice.totalAmount,
+            paymentType: data.payment_type ?? invoice.paymentType,
+            status: data.status ?? invoice.status,
+            createdDate: data.created_date ?? invoice.createdDate,
+            printedDate: data.printed_date ?? invoice.printedDate,
+            completedDate: data.completed_date ?? invoice.completedDate
+          }
+        : invoice;
+
+      setPendingInvoices((prev) => [...prev, persistedInvoice]);
+      return persistedInvoice;
+    }
+
+    setPendingInvoices((prev) => [...prev, invoice]);
     return invoice;
   };
 
-  const printInvoice = () => {
-    if (cart.length === 0) return;
-    
-    // Check if all items are credit purchases (no full payments)
-    const hasFullPayment = cart.some(item => item.paymentType === 'full');
-    const allCreditPurchases = !hasFullPayment;
-    
-    const invoice = createPendingInvoice();
-    
-    // Mark as printed
-    const updatedInvoices = pendingInvoices.map(inv => 
-      inv.invoiceId === invoice.invoiceId 
-        ? { ...inv, printedDate: new Date().toISOString() }
-        : inv
-    );
-    setPendingInvoices(updatedInvoices);
-    
-    // Generate QR code before opening modal
-    generateQRCode();
-    
-    // For full credit purchases, show pending invoices instead of invoice modal
-    if (allCreditPurchases) {
-      setShowInvoiceModal(false);
-      setShowPendingInvoices(true);
+  const printInvoice = async () => {
+    try {
+      setCreatingInvoice(true);
+      console.log('printInvoice called');
+      console.log('cart.length:', cart.length);
+      console.log('stockSold.customerName:', stockSold.customerName);
       
-      // Show notification for full credit purchase
-      setTimeout(() => {
-        alert(`Credit Purchase Invoice Created!\n\nInvoice ${invoice.invoiceId} has been added to pending invoices.\n\nTotal Amount: $${invoice.totalAmount.toFixed(2)}\nItems: ${invoice.items.length}\n\nYou can find this invoice in "Pending Invoices" section.`);
-      }, 500);
-    } else {
-      // Open invoice modal for mixed or full payment purchases
-      setShowInvoiceModal(true);
+      if (cart.length === 0) {
+        alert('Please add items to the cart before printing an invoice.');
+        setCreatingInvoice(false);
+        return;
+      }
+
+      if (!stockSold.customerName) {
+        alert('Please enter a customer name before printing an invoice.');
+        setCreatingInvoice(false);
+        return;
+      }
+      
+      const hasFullPayment = cart.some(item => item.paymentType === 'full');
+      const allCreditPurchases = !hasFullPayment;
+      
+      console.log('Creating invoice...');
+      const invoice = await createPendingInvoice({ printedDate: new Date().toISOString() });
+      console.log('Invoice created:', invoice);
+      
+      if (!invoice) {
+        alert('Failed to create invoice. Please check your data and try again.');
+        setCreatingInvoice(false);
+        return;
+      }
+      
+      console.log('Generating QR code...');
+      // Generate QR code before opening modal
+      await generateQRCode();
+      console.log('QR code generated');
+      
+      if (allCreditPurchases) {
+        setShowInvoiceModal(false);
+        setShowPendingInvoices(true);
+        
+        setTimeout(() => {
+          alert(`Credit Purchase Invoice Created!\n\nInvoice ${invoice.invoiceId} has been added to pending invoices.\n\nTotal Amount: $${invoice.totalAmount.toFixed(2)}\nItems: ${invoice.items.length}\n\nYou can find this invoice in "Pending Invoices" section.`);
+        }, 500);
+      } else {
+        console.log('Showing invoice modal');
+        setShowInvoiceModal(true);
+      }
+      setCreatingInvoice(false);
+    } catch (error) {
+      console.error('Error in printInvoice:', error);
+      alert(`Error creating invoice: ${error.message}`);
+      setCreatingInvoice(false);
     }
   };
 
-  const completePendingInvoice = (invoiceId) => {
+  const downloadInvoice = async () => {
+    const invoiceElement = document.getElementById('invoice-content');
+    if (!invoiceElement) return;
+
+    try {
+      // Temporarily remove padding/margins for full width capture
+      const originalPadding = invoiceElement.style.padding;
+      const originalMargin = invoiceElement.style.margin;
+      invoiceElement.style.padding = '0';
+      invoiceElement.style.margin = '0';
+
+      // Create canvas from the invoice element with better quality
+      const canvas = await html2canvas(invoiceElement, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+
+      // Restore original styles
+      invoiceElement.style.padding = originalPadding;
+      invoiceElement.style.margin = originalMargin;
+
+      // Create PDF from canvas
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        compress: true,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      // Calculate height to maintain aspect ratio and fill the page width
+      const imgHeight = (canvas.height * pageWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // Add first page
+      pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Add additional pages if needed
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      // Generate filename with current date
+      const fileName = `Invoice_${new Date().toISOString().slice(0, 10)}_${stockSold.customerName || 'Customer'}.pdf`;
+      pdf.save(fileName);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to download invoice. Please try again.');
+    }
+  };
+
+  const completePendingInvoice = async (invoiceId) => {
     const invoice = pendingInvoices.find(inv => inv.invoiceId === invoiceId);
     if (!invoice) return;
+
+    if (supabase) {
+      const { error } = await supabase
+        .from('pending_invoices')
+        .update({ status: 'completed', completed_date: new Date().toISOString() })
+        .eq('invoice_id', invoiceId);
+
+      if (error) {
+        setSupabaseStatus(`Failed to complete invoice: ${error.message}`);
+        return;
+      }
+
+      setSupabaseStatus(`Invoice ${invoiceId} marked completed in Supabase.`);
+    }
     
-    // Update inventory
     const updatedItems = [...inventoryItems];
     invoice.items.forEach(cartItem => {
       const itemIndex = parseInt(cartItem.itemId);
@@ -419,7 +596,6 @@ export function ProcurementTab() {
     });
     setInventoryItems(updatedItems);
     
-    // Add to sales history
     const newSalesEntries = invoice.items.map(cartItem => ({
       itemName: cartItem.itemName,
       quantity: cartItem.quantity,
@@ -435,7 +611,6 @@ export function ProcurementTab() {
     
     setSalesHistory([...salesHistory, ...newSalesEntries]);
     
-    // Update customer in CRM
     const updatedCustomers = customers.map(customer => {
       if (customer.customerId === invoice.customerId) {
         return {
@@ -457,7 +632,6 @@ export function ProcurementTab() {
     });
     setCustomers(updatedCustomers);
     
-    // Remove from pending invoices
     setPendingInvoices(pendingInvoices.filter(inv => inv.invoiceId !== invoiceId));
   };
 
@@ -550,15 +724,8 @@ export function ProcurementTab() {
             <div className="flex-1">
               <label className="text-sm text-muted-foreground font-bold">NEW SALE</label>
               
-              {/* Customer Search */}
+              {/* Pending Invoices */}
               <div className="flex flex-col gap-2 mt-2 sm:flex-row">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowCustomerSearch(!showCustomerSearch)}
-                  className="flex-1 min-h-11 touch-manipulation"
-                >
-                  Search Existing Customer
-                </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => setShowPendingInvoices(!showPendingInvoices)}
@@ -572,45 +739,6 @@ export function ProcurementTab() {
                   )}
                 </Button>
               </div>
-
-              {/* Customer Search Results */}
-              {showCustomerSearch && (
-                <div className="mt-2 p-3 border rounded-lg bg-muted/50">
-                  <div className="text-sm font-medium mb-2">Search Results:</div>
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {customers.length === 0 ? (
-                      <div className="text-xs text-muted-foreground">No customers found</div>
-                    ) : (
-                      customers.map((customer, index) => (
-                        <div 
-                          key={index}
-                          className="flex justify-between items-center p-2 bg-background rounded cursor-pointer hover:bg-muted"
-                          onClick={() => {
-                            setStockSold({
-                              ...stockSold,
-                              customerName: customer.name,
-                              customerPhone: customer.phone,
-                              customerCity: customer.city,
-                              customerCountry: customer.country
-                            });
-                            setShowCustomerSearch(false);
-                          }}
-                        >
-                          <div>
-                            <div className="font-medium text-sm">{customer.name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {customer.phone} | {customer.city}, {customer.country}
-                            </div>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            ${customer.totalPurchases.toFixed(2)} total
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
 
               {/* Customer Details */}
               <div className="grid grid-cols-1 gap-2 mt-2 sm:grid-cols-2">
@@ -994,10 +1122,10 @@ export function ProcurementTab() {
                 <Button 
                   variant="destructive"
                   onClick={printInvoice}
-                  disabled={cart.length === 0}
+                  disabled={cart.length === 0 || creatingInvoice}
                 >
                   <Printer className="h-3 w-3 mr-1" />
-                  Save & Print Invoice
+                  {creatingInvoice ? 'Creating Invoice...' : 'Save & Print Invoice'}
                 </Button>
               </div>
             </div>
@@ -1079,6 +1207,15 @@ export function ProcurementTab() {
                     Print
                   </Button>
                   <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="min-h-10 flex-1 sm:flex-initial touch-manipulation"
+                    onClick={downloadInvoice}
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    Download
+                  </Button>
+                  <Button 
                     variant="outline"
                     size="sm"
                     className="min-h-10 flex-1 sm:flex-initial touch-manipulation"
@@ -1100,6 +1237,7 @@ export function ProcurementTab() {
                 </div>
               </div>
 
+              <div id="invoice-content" className="space-y-4">
               {/* Invoice Header */}
               <div className="border-b pb-4 mb-4">
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
@@ -1294,6 +1432,7 @@ export function ProcurementTab() {
               <div className="mt-6 pt-4 border-t text-xs text-muted-foreground">
                 <p>Thank you for your business!</p>
                 <p>For inquiries, contact: info@famaflow.com | Phone: +254 XXX XXX XXX</p>
+              </div>
               </div>
             </div>
           </div>
