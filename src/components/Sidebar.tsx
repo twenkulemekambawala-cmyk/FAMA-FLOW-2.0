@@ -39,15 +39,7 @@ export function Sidebar({ activeTab, onTabChange, isMobileOpen, onMobileClose }:
         <div className="flex flex-col h-full min-h-0">
           {/* Header */}
           <div className="flex items-center justify-between p-3 sm:p-4 border-b shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-display font-bold text-sm">FF</span>
-              </div>
-              <div>
-                <h1 className="font-display font-bold text-lg leading-none">FAMA FLOW</h1>
-                <p className="text-xs text-muted-foreground">Import & Distribution</p>
-              </div>
-            </div>
+            <img src="/logo.png" alt="FAMA Logo" className="h-10 w-auto" />
             <button
               type="button"
               onClick={onMobileClose}
@@ -74,7 +66,7 @@ export function Sidebar({ activeTab, onTabChange, isMobileOpen, onMobileClose }:
                     "w-full min-h-12 flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors touch-manipulation active:opacity-90",
                     activeTab === tab.id
                       ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                      : "text-[#414042] hover:text-foreground hover:bg-accent"
                   )}
                 >
                   <Icon className="h-5 w-5 shrink-0" />

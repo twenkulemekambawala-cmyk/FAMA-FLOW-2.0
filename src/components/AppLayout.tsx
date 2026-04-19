@@ -23,9 +23,7 @@ export function AppLayout() {
       <header className="border-b bg-card px-4 lg:px-8 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-display font-bold text-sm">FF</span>
-            </div>
+            <img src="/logo.png" alt="FAMA Logo" className="h-9 w-auto" />
             <div>
               <h1 className="font-display font-bold text-lg leading-none">FAMA FLOW</h1>
               <p className="text-xs text-muted-foreground">GM Command Center</p>

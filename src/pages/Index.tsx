@@ -36,10 +36,7 @@ export default function Index() {
               <Menu className="h-6 w-6" />
             </button>
             <div className="flex items-center gap-2 min-w-0">
-              <div className="h-8 w-8 shrink-0 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-display font-bold text-xs">FF</span>
-              </div>
-              <span className="font-display font-bold text-sm truncate">FAMA FLOW</span>
+              <img src="/logo.png" alt="FAMA Logo" className="h-8 w-auto" />
             </div>
             <div className="w-11 shrink-0" aria-hidden />
           </div>

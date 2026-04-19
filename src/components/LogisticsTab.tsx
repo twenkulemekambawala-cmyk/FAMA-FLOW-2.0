@@ -322,21 +322,21 @@ export function LogisticsTab() {
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <Ship className="h-5 w-5 text-red-700" />
+                <Ship className="h-5 w-5 text-[#ed2938]" />
                 <h3 className="font-display font-semibold text-slate-800">Shipments</h3>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => setActiveShipmentTab('customer')}
-                  className={`rounded-full px-4 py-2 text-sm font-medium ${activeShipmentTab === 'customer' ? 'bg-red-700 text-white' : 'bg-gray-100 text-slate-800 hover:bg-gray-200'}`}
+                  className={`rounded-full px-4 py-2 text-sm font-medium ${activeShipmentTab === 'customer' ? 'bg-[#ed2938] text-white' : 'bg-gray-100 text-slate-800 hover:bg-gray-200'}`}
                 >
                   Customer Shipment
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveShipmentTab('fama_group')}
-                  className={`rounded-full px-4 py-2 text-sm font-medium ${activeShipmentTab === 'fama_group' ? 'bg-red-700 text-white' : 'bg-gray-100 text-slate-800 hover:bg-gray-200'}`}
+                  className={`rounded-full px-4 py-2 text-sm font-medium ${activeShipmentTab === 'fama_group' ? 'bg-[#ed2938] text-white' : 'bg-gray-100 text-slate-800 hover:bg-gray-200'}`}
                 >
                   Fama Group Shipment
                 </button>
@@ -375,7 +375,7 @@ export function LogisticsTab() {
                   </Button>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-red-700" style={{ width: `${progressPercentage}%` }} />
+                  <div className="h-full rounded-full bg-[#ed2938]" style={{ width: `${progressPercentage}%` }} />
                 </div>
               </div>
               {showNewContainerForm && (
@@ -489,7 +489,7 @@ export function LogisticsTab() {
             </div>
             <Button
               onClick={() => setShowAddShipment(!showAddShipment)}
-              className="bg-red-700 hover:bg-red-800 text-white"
+              className="bg-[#ed2938] hover:bg-[#d41e33] text-white"
             >
               <Plus className="h-4 w-4 mr-2" />
               New Shipment
@@ -679,13 +679,13 @@ export function LogisticsTab() {
                   <div className="space-y-2 pt-3">
                     <p className="text-xs text-slate-600 uppercase tracking-[0.2em]">Shipment Tracker</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <div className={`rounded-full px-3 py-2 text-xs font-semibold ${shipment.stage === 'warehouse' ? 'bg-red-700 text-white' : 'bg-gray-100 text-slate-600'}`}>
+                      <div className={`rounded-full px-3 py-2 text-xs font-semibold ${shipment.stage === 'warehouse' ? 'bg-[#ed2938] text-white' : 'bg-gray-100 text-slate-600'}`}>
                         China Warehouse
                       </div>
-                      <div className={`rounded-full px-3 py-2 text-xs font-semibold ${shipment.stage === 'port' ? 'bg-red-700 text-white' : 'bg-gray-100 text-slate-600'}`}>
+                      <div className={`rounded-full px-3 py-2 text-xs font-semibold ${shipment.stage === 'port' ? 'bg-[#ed2938] text-white' : 'bg-gray-100 text-slate-600'}`}>
                         Port {shipment.departurePort}
                       </div>
-                      <div className={`rounded-full px-3 py-2 text-xs font-semibold ${shipment.stage === 'offloaded' ? 'bg-red-700 text-white' : 'bg-gray-100 text-slate-600'}`}>
+                      <div className={`rounded-full px-3 py-2 text-xs font-semibold ${shipment.stage === 'offloaded' ? 'bg-[#ed2938] text-white' : 'bg-gray-100 text-slate-600'}`}>
                         Offloaded Tanzania
                       </div>
                     </div>
@@ -786,17 +786,13 @@ export function LogisticsTab() {
               <div className="border-b pb-4">
                 <div className="grid grid-cols-2 gap-8">
                   <div>
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="h-12 w-12 rounded-lg bg-red-700 flex items-center justify-center">
-                        <span className="text-white font-display font-bold">FF</span>
-                      </div>
-                      <div>
-                        <h5 className="font-bold">FAMA LOGISTICS</h5>
-                        <p className="text-xs text-slate-600">From China to Africa</p>
-                      </div>
+                    <div className="flex flex-col items-start gap-2 mb-4">
+                      <img src="/logo.png" alt="FAMA Logo" className="h-12 w-auto" />
+                      <h5 className="text-lg font-bold font-display">FAMA LOGISTICS</h5>
                     </div>
                   </div>
                   <div className="text-right">
+                    <h4 className="text-2xl font-bold font-display mb-4">SHIPMENT INVOICE</h4>
                     <div className="mb-2">
                       <p className="text-sm text-slate-600">Shipment ID</p>
                       <p className="font-mono font-bold text-slate-800">{selectedShipment.shipmentId}</p>

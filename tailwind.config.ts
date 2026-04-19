@@ -14,7 +14,7 @@ export default {
     },
     fontFamily: {
       sans: ['Inter', 'system-ui', 'sans-serif'],
-      display: ['Space Grotesk', 'system-ui', 'sans-serif'],
+      display: ['Bank Gothic', 'system-ui', 'sans-serif'],
     },
     extend: {
       colors: {
